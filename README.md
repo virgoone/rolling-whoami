@@ -11,7 +11,7 @@
 | `/readyz` | 就绪检查；启动等待期间和收到终止信号后返回 503 |
 | `/wait?duration=5s` | 慢请求，测试切换时已有请求是否能完成；最长 20 秒，每实例最多 32 个并发慢请求 |
 
-每个响应带 `Cache-Control: no-store`；身份响应还带 `X-App-Version` 和 `X-Instance-ID`。未知路径返回 404，不支持的方法返回 405。
+正常响应带 `Cache-Control: no-store`；身份响应还带 `X-App-Version` 和 `X-Instance-ID`。未知路径返回 404，不支持的方法返回 405。
 
 配置只有 `PORT`（默认 8080）和可选的 `STARTUP_DELAY`（默认 0s，最长 1m）。版本来自仓库里的 `VERSION` 文件。收到 SIGTERM/SIGINT 后停止接收连接，最多等待 25 秒让在途请求完成。
 
@@ -23,8 +23,8 @@ go run .
 # 另一个终端
 curl localhost:8080
 
-docker build -t rolling-whoami:v1 .
-docker run --rm -p 8080:8080 --stop-timeout 30 rolling-whoami:v1
+docker build -t rolling-whoami:local .
+docker run --rm -p 8080:8080 --stop-timeout 30 rolling-whoami:local
 ```
 
 镜像中没有 shell、curl、包管理器或 CA 证书；服务只提供 HTTP，HTTPS 交给 Berth 入口。Dockerfile 使用 Go 1.26 构建，最终层只有静态二进制。无需预先发布 Docker Hub/GHCR 镜像，Berth 可直接克隆公开仓库构建。可选构建参数 `VCS_REF` 用于填充响应里的 revision（默认 unknown）。
@@ -60,3 +60,17 @@ docker run --rm -p 8080:8080 --stop-timeout 30 rolling-whoami:v1
 5. 可在 Berth 回滚到 v1，再运行同样的采样。
 
 默认 4 个普通请求线程加 1 个慢请求线程，HTTPS 会校验证书。一次有限窗口内零错误只能说明这次测试通过，不能证明所有故障情形下都零停机。
+
+## 已验证（2026-10-29）
+
+在 Berth v0.0.19 上从公开 Git 仓库构建并部署成功，两个副本使用 gVisor、非 root 用户运行。
+
+- v1 提交：`806e50d4db371d557ddd92904bb4cfa607f3af65`
+- v2 提交：`a926cfb1901f870dc0f673b57b664bcc1bf9ad61`
+- 180 秒公网 HTTPS 采样：851 次请求，0 次失败；其中 31 次为 5 秒慢请求，全部完成。
+- v1 响应 352 次、v2 响应 499 次，观察到两个旧实例和两个新实例；最终只剩两个健康的 v2 实例。
+- 两批各替换一个副本，中间排空 10 秒；构建约 32 秒，完整部署约 51 秒。
+- `scratch` 镜像只有一个约 6.04 MB 的文件层；Docker image inspect 报告本地镜像大小约 8.61 MB。
+- 实际 HTTPS 握手成功复用平台现有通配符证书，没有为这个应用单独签发证书。
+
+本地还通过了 `go test -race ./...`、`go vet ./...` 和真实进程的 SIGTERM 在途请求测试。上述结果是本次单节点、有限流量测试记录，不包含节点故障或高并发压测。
