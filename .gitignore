@@ -1,0 +1,4 @@
+/whoami
+/probe*.json*
+/results/
+__pycache__/
