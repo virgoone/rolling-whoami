@@ -58,6 +58,7 @@ func (a *app) handler() http.Handler {
 	})
 	mux.HandleFunc("GET /{$}", a.whoami)
 	mux.HandleFunc("GET /wait", a.wait)
+	mux.HandleFunc("GET /preview", previewPage)
 	return mux
 }
 
@@ -154,4 +155,12 @@ func main() {
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// previewPage is a static visual fixture for Berth's HTML preview toolbar.
+func previewPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	fmt.Fprint(w, `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rolling · Blue preview v3</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#14213d;font:16px system-ui,-apple-system,sans-serif}main{max-width:960px;margin:10vh auto;padding:32px}header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #dbe2ed;padding-bottom:24px}.mark{font-weight:800;letter-spacing:3px}.badge{color:#2456d7;background:#e5edff;padding:8px 14px;border-radius:24px;font-size:13px}h1{font-size:clamp(40px,7vw,72px);letter-spacing:-3px;line-height:1.05;margin:64px 0 24px}h1 span{color:#2456d7}p{color:#617089;line-height:1.8;max-width:640px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin:40px 0}.item{background:white;border:1px solid #dbe2ed;border-radius:16px;padding:24px}.item small{display:block;color:#617089;margin-bottom:12px}.item strong{font-size:21px}a,button{display:inline-block;background:#2456d7;color:white;border:0;border-radius:10px;padding:13px 18px;text-decoration:none;font:inherit;cursor:pointer}pre{background:#14213d;color:#e5edff;padding:24px;border-radius:16px;overflow:auto;font-size:13px;line-height:1.7}footer{color:#617089;margin-top:24px;font-size:13px}</style></head><body><main><header><div class="mark">ROLLING / WHOAMI</div><div class="badge">PR PUSH UPDATE · BLUE V3</div></header><h1>一个分支。<br><span>一个独立预览。</span></h1><p>这是 Blue V3：同一个 PR 推送新提交后自动构建的版本。页面与版本随分支部署，生产环境继续使用 main。底部的 Berth 工具栏由平台注入，可用来查看当前预览信息。</p><div class="grid"><div class="item"><small>测试版本</small><strong>preview-blue-v3</strong></div><div class="item"><small>部署方式</small><strong>Rolling · 2 replicas</strong></div><div class="item"><small>健康检查</small><strong>/readyz</strong></div></div><button id="refresh">刷新实例信息</button> <a href="/">查看原始 JSON</a><pre id="identity">正在读取当前实例…</pre><footer>每次刷新可能命中不同副本；版本应始终属于当前预览分支。</footer></main><script>async function refresh(){try{const r=await fetch('/',{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);document.getElementById('identity').textContent=JSON.stringify(await r.json(),null,2)}catch(e){document.getElementById('identity').textContent=e.message}}document.getElementById('refresh').addEventListener('click',refresh);refresh();</script></body></html>`)
 }
